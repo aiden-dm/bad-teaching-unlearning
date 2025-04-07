@@ -1,10 +1,9 @@
 import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-from dataset import UnLearningData
+from .dataset import UnLearningData
 import numpy as np
-from utils import *
-
+from .utils import *
 
 def UnlearnerLoss(output, labels, full_teacher_logits, unlearn_teacher_logits, KL_temperature):
     labels = torch.unsqueeze(labels, dim = 1)
