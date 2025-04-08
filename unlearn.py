@@ -4,6 +4,12 @@ from torch.utils.data import DataLoader
 from .dataset import UnLearningData
 import numpy as np
 from .utils import *
+import sys
+
+# Adding the local files to the system path
+sys.path.append('/content/Unlearning-MIA-Eval/Final_Structure')
+
+from Final_Structure.evaluate import train_validation
 
 def UnlearnerLoss(output, labels, full_teacher_logits, unlearn_teacher_logits, KL_temperature):
     labels = torch.unsqueeze(labels, dim = 1)
@@ -63,13 +69,41 @@ def fit_one_unlearning_cycle(epochs,  model, train_loader, val_loader, lr, devic
         history.append(result)
     return history
 
-def blindspot_unlearner(model, unlearning_teacher, full_trained_teacher, retain_data, forget_data, epochs = 10,
-                optimizer = 'adam', lr = 0.01, batch_size = 256, num_workers = 32, 
-                device = 'cuda', KL_temperature = 1):
+def blindspot_unlearner(
+    model, 
+    unlearning_teacher, 
+    full_trained_teacher, 
+    retain_data, 
+    forget_data,
+    loaders, 
+    epochs = 10,
+    optimizer = 'adam', 
+    lr = 0.01, 
+    batch_size = 256, 
+    num_workers = 32, 
+    device = 'cuda', 
+    KL_temperature = 1,
+    print_accuracies = False
+):
+    
     # creating the unlearning dataset.
     unlearning_data = UnLearningData(forget_data=forget_data, retain_data=retain_data)
     unlearning_loader = DataLoader(unlearning_data, batch_size = batch_size, shuffle=True, 
                             num_workers=num_workers, pin_memory=True)
+
+    # Extract loaders used for validation
+    train_retain_loader = loaders[0]
+    train_forget_loader = loaders[1]
+    val_retain_loader = loaders[2]
+    val_forget_loader = loaders[3]
+
+    # Create a history variable to store information
+    tf_accs = []
+    tr_accs = []
+    vf_accs = []
+    vr_accs = []
+    losses = []
+    epoch_list = []
 
     unlearning_teacher.eval()
     full_trained_teacher.eval()
@@ -84,10 +118,29 @@ def blindspot_unlearner(model, unlearning_teacher, full_trained_teacher, retain_
         loss = unlearning_step(model = model, unlearning_teacher= unlearning_teacher, 
                         full_trained_teacher=full_trained_teacher, unlearn_data_loader=unlearning_loader, 
                         optimizer=optimizer, device=device, KL_temperature=KL_temperature)
+        
+        losses.append(loss)
+        epoch_list.append(epoch)
+        acc_dict = train_validation(model, 
+                                    train_retain_loader, 
+                                    train_forget_loader, 
+                                    val_retain_loader, 
+                                    val_forget_loader)
+        tr_accs.append(acc_dict['tr_acc'])
+        tf_accs.append(acc_dict['tf_acc'])
+        vr_accs.append(acc_dict['vr_acc'])
+        vf_accs.append(acc_dict['vf_acc'])
+        
         print("Epoch {} Unlearning Loss {}".format(epoch+1, loss))
+
+        # Print epoch progress
+        if print_accuracies:
+            print(f"   tr_acc: {acc_dict['tr_acc']}")
+            print(f"   tf_acc: {acc_dict['tf_acc']}")
+            print(f"   vr_acc: {acc_dict['vr_acc']}")
+            print(f"   vf_acc: {acc_dict['vf_acc']}")
         
-        
-   
+ 
 class UNSIR_noise(torch.nn.Module):
     def __init__(self, *dim):
         super().__init__()
