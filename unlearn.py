@@ -139,6 +139,17 @@ def blindspot_unlearner(
             print(f"   tf_acc: {acc_dict['tf_acc']}")
             print(f"   vr_acc: {acc_dict['vr_acc']}")
             print(f"   vf_acc: {acc_dict['vf_acc']}")
+
+    history = {
+        'losses': losses,
+        'epoch_list': epoch_list,
+        'tr_accs': tr_accs,
+        'tf_accs': tf_accs,
+        'vr_accs': vr_accs,
+        'vf_accs': vf_accs
+    }
+
+    return history
         
  
 class UNSIR_noise(torch.nn.Module):
